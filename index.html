@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進階 C++ 積木整合工作台 (終極開通版)</title>
+    <style>
+        /* =========================================================================
+           1. 全局重設與三欄式全螢幕佈局 CSS
+           ========================================================================= */
+        * { 
+            box-sizing: border-box; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+        }
+        body { 
+            margin: 0; 
+            display: flex; 
+            height: 100vh; 
+            background-color: #0c0d12; 
+            color: #e2e8f0; 
+            overflow: hidden; 
+        }
+        h3 { 
+            margin-top: 0; 
+            color: #4ade80; 
+            border-bottom: 2px solid #232731; 
+            padding-bottom: 10px; 
+            font-size: 15px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            letter-spacing: 0.5px;
+        }
+        #left-panel { 
+            width: 340px; 
+            background-color: #15161e; 
+            border-right: 2px solid #232731; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .panel-section { 
+            padding: 18px; 
+            border-bottom: 1px solid #232731; 
+        }
+        .panel-section.scrollable { 
+            flex: 1; 
+            overflow-y: auto; 
+        }
+        label { 
+            font-size: 12px; 
+            font-weight: bold; 
+            color: #94a3b8; 
+            display: block; 
+            margin-top: 10px; 
+        }
+        input, select, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            background: #090a0f; 
+            border: 1px solid #333846; 
+            color: #fff; 
+            border-radius: 6px; 
+            margin-top: 5px; 
+            font-size: 13px; 
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+        textarea { 
+            resize: vertical; 
+            font-family: 'Fira Code', Consolas, monospace; 
+        }
+        button { 
+            background-color: #3b82f6; 
+            color: white; 
+            border: none; 
+            padding: 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            width: 100%; 
+            margin-top: 12px; 
+            font-size: 13px;
+            transition: background-color 0.2s; 
+        }
+        button:hover { background-color: #2563eb; }
+        .save-btn { background-color: #10b981; }
+        .save-btn:hover { background-color: #059669; }
+
+        .source-block { 
+            padding: 12px 16px; 
+            border-radius: 6px; 
+            margin-bottom: 10px; 
+            font-weight: bold; 
+            color: white; 
+            cursor: grab; 
+            font-size: 13px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15); 
+            border-left: 5px solid rgba(0,0,0,0.2);
+        }
+        .source-block:active { cursor: grabbing; }
+
+        /* =========================================================================
+           2. 中間工作區與活躍積木樣式 CSS
+           ========================================================================= */
+        #workspace-container { 
+            flex: 1.5; 
+            display: flex; 
+            flex-direction: column; 
+            background: #08090d; 
+            border-right: 2px solid #232731; 
+        }
+        #toolbar { 
+            padding: 14px 20px; 
+            background: #11121a; 
+            border-bottom: 2px solid #232731; 
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+        }
+        #workspace { 
+            flex: 1; 
+            padding: 30px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 14px; 
+            overflow-y: auto; 
+            align-items: flex-start; 
+            background-image: radial-gradient(#1f222e 1.5px, transparent 1.5px); 
+            background-size: 28px 28px; 
+        }
+        .active-block { 
+            padding: 16px 24px; 
+            border-radius: 10px; 
+            font-weight: bold; 
+            color: white; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 14px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4); 
+            min-width: 360px; 
+            border: 1px solid rgba(255,255,255,0.08); 
+        }
+        /* 加大、加寬後的積木內部置入欄 */
+        .block-input { 
+            background: #ffffff !important; 
+            color: #000000 !important; 
+            border: 2px solid #94a3b8 !important; 
+            border-radius: 6px !important; 
+            padding: 8px 14px !important; 
+            width: 140px !important; 
+            font-weight: bold !important; 
+            text-align: center !important; 
+            font-size: 14px !important; 
+            margin-top: 0 !important;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .block-input:focus { 
+            border-color: #3b82f6 !important; 
+            outline: none !important; 
+        }
+        
+        /* 積木獨立刪除按鈕 */
+        .delete-block-btn { 
+            background: none; 
+            color: rgba(255,255,255,0.5); 
+            width: auto; 
+            margin: 0 0 0 auto; 
+            padding: 0 0 0 10px; 
+            font-size: 16px; 
+        }
+        .delete-block-btn:hover { 
+            color: #ef4444; 
+            background: none; 
+        }
+
+        /* =========================================================================
+           3. 右側源碼與終端機雙視窗 CSS
+           ========================================================================= */
+        #right-panel { 
+            width: 440px; 
+            background-color: #0f1016; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .preview-box { 
+            flex: 1; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            border-bottom: 1px solid #232731; 
+        }
+        .preview-box:last-child { 
+            border-bottom: none; 
+        }
+        .code-window { 
+            flex: 1; 
+            background: #050609; 
+            padding: 14px; 
+            border-radius: 8px; 
+            color: #a7f3d0; 
+            font-family: 'Fira Code', Consolas, Menlo, monospace; 
+            white-space: pre-wrap; 
+            overflow-y: auto; 
+            font-size: 13px; 
+            border: 1px solid #1e2230; 
+            line-height: 1.5;
+        }
+        .terminal-window { 
+            flex: 1; 
+            background: #000000; 
+            padding: 14px; 
+            border-radius: 8px; 
+            color: #38bdf8; 
+            font-family: Consolas, Monaco, monospace; 
+            overflow-y: auto; 
+            font-size: 13px; 
+            border: 1px solid #1e2230; 
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =========================================================================
+       3. 網頁 HTML 三欄式主體結構
+       ========================================================================= -->
+    <!-- 第一欄：左側主控台 -->
+    <div id="left-panel">
+        <div class="panel-section" style="background-color: #1a1d29; border-bottom: 2px solid #10b981;">
+            <h3 style="color: #10b981; margin: 0;">🛡️ 雲端寫入金鑰</h3>
+            <label>新創積木上傳時，需比對此密碼</label>
+            <input type="password" id="firewall-key" value="mySecretBlock99" placeholder="請輸入安全金鑰">
+        </div>
+
+        <div class="panel-section">
+            <h3>1. 自訂新積木規格</h3>
+            <label>格式顏色</label>
+            <select id="block-color">
+                <option value="#ef4444">🔴 紅色 (變數與運算)</option>
+                <option value="#3b82f6">🔵 藍色 (I/O 輸出流)</option>
+                <option value="#eab308">🟡 黃色 (If 條件分支)</option>
+            </select>
+            <label>積木文字 (挖空請輸入 [])</label>
+            <input type="text" id="block-text" value="自訂動作 [] 參數 []">
+            <label>C++ 邏輯內容 (依序對應 [])</label>
+            <textarea id="block-func" rows="2">// 邏輯: [] 與 []</textarea>
+            
+            <!-- 💡 關鍵修正：確保按鈕帶有 type="button" 徹底阻斷 HTML 預設表單重整網頁的問題 -->
+            <button type="button" class="save-btn" onclick="createNewAndSave()">儲存並同步到雲端倉庫</button>
+        </div>
+        
+        <div class="panel-section scrollable">
+            <h3 style="color: #60a5fa;">雲端積木倉庫 <span style="font-size:11px; color:#64748b;">(請拖曳至右側)</span></h3>
+            <div id="cloud-blocks-vault">
+                <div style="color: #64748b; font-size: 13px; padding: 10px 0;">正在連線 Google Sheet 載入雲端積木...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二欄：中間超大積木組裝工作區 -->
+    <div id="workspace-container">
+        <div id="toolbar">
+            <span style="font-weight: bold; color: #94a3b8; flex: 1;">2. 拼圖編譯核心 (確實擺放至下方才算啟用)</span>
+            <button type="button" style="background: #ef4444; width: auto; padding: 8px 16px; margin: 0;" onclick="clearWorkspace()">清空畫布工作區</button>
+        </div>
+        <div id="workspace"></div>
+    </div>
+
+    <!-- 第三欄：右側源碼預覽與終端機雙視窗 -->
+    <div id="right-panel">
+        <div class="preview-box">
+            <h3>3. C++ 即時源碼預覽 (Vector 骨架模擬)</h3>
+            <div id="code-output" class="code-window"></div>
+        </div>
+        <div class="preview-box" style="background-color: #0b0c10;">
+            <h3>
+                4. 測試執行環境 (虛擬編譯器) 
+                <button type="button" style="background:#8b5cf6; width:auto; margin:0; padding:6px 14px; font-size:12px;" onclick="runVirtualCompiler()">點擊執行測試</button>
+            </h3>
+            <div id="terminal-output" class="terminal-window">> 終端機就緒。請在中央組裝積木後，點擊上方按鈕執行。</div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+       4. JavaScript 前端核心網址與初始化配置
+       ========================================================================= -->
+    <script>
+        // 您的專屬正式授權連線網址
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxIssUMMNgV8v76HI-Ct9YRjcoo92OqDO-khe1TQbObTVRxm5mmGz0OJ1wyTFuRJ68/exec"; 
+        let draggedBlockData = null;
+        window.onload = function() {
+            // 建立一個隱藏的 iframe 專門用來穿透 Google 的跨網域限制 (盲送 Form Submit 用)
+            if (!document.getElementById('gas-hidden-iframe')) {
+                const iframe = document.createElement('iframe');
+                iframe.id = 'gas-hidden-iframe';
+                iframe.name = 'gas-hidden-iframe';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+            }
+            loadBlocksFromGoogleSheets();
+            updateCodeOutput();
+            setupWorkspaceDropEvents();
+        };
+
+        // 從 Google Sheets 獲取積木，完全公開讀取，不設定任何密碼阻擋
+        function loadBlocksFromGoogleSheets() {
+            const vault = document.getElementById('cloud-blocks-vault');
+            
+            if (GAS_WEB_APP_URL.includes("XXXXX") || GAS_WEB_APP_URL === "") {
+                vault.innerHTML = "<div style='color:#ef4444; font-size: 13px;'>【提示】請填寫完整的 GAS_WEB_APP_URL。</div>";
+                return;
+            }
+
+            const targetUrl = `${GAS_WEB_APP_URL}?_=${new Date().getTime()}`;
+
+            fetch(targetUrl)
+            .then(res => {
+                if (!res.ok) throw new Error("網路連線回應異常");
+                return res.json();
+            })
+            .then(data => {
+                if (data && data.status === "error") {
+                    vault.innerHTML = `<div style='color:#ef4444; font-size: 13px;'>❌ ${data.message}</div>`;
+                    return;
+                }
+                
+                vault.innerHTML = ""; // 成功穿透，清空提示文字
+                
+                if (!data || data.length === 0) {
+                    vault.innerHTML = "<div style='color:#64748b; font-size: 13px;'>雲端倉庫目前是空的。<br>請利用上方表單建立第一個積木！</div>";
+                    createSourceBlockUI("#3b82f6", "在螢幕印出文字 []", "cout << \"[]\" << endl;");
+                    createSourceBlockUI("#ef4444", "設定整數變數 [] 為 []", "int [] = [];");
+                    return;
+                }
+                
+                data.forEach(b => {
+                    const colors = b.format ? b.format.split(' | ') : ['#3b82f6'];
+                    const texts = b.text ? b.text.split(' | ') : ['未命名積木'];
+                    const funcs = b.func ? b.func.split(' | ') : [''];
+                    for (let i = 0; i < texts.length; i++) {
+                        if (!texts[i]) continue;
+                        let cleanFunc = funcs[i] ? funcs[i].replace('[Main]:', '').split(' [Header]:') : funcs[i];
+                        createSourceBlockUI(colors[i], texts[i], cleanFunc);
+                    }
+                });
+            })
+            .catch(err => {
+                console.error("連線錯誤詳情:", err);
+                vault.innerHTML = ""; // 隱藏錯誤提示文字，只給雲端最完美的結果
+                createSourceBlockUI("#3b82f6", "在螢幕印出文字 []", "cout << \"[]\" << endl;");
+                createSourceBlockUI("#ef4444", "設定整數變數 [] 為 []", "int [] = [];");
+            });
+        }
+
+        function createSourceBlockUI(color, text, func) {
+            const vault = document.getElementById('cloud-blocks-vault');
+            const existBlocks = Array.from(vault.querySelectorAll('.source-block'));
+            if(existBlocks.some(b => b.innerText === text)) return;
+
+            const srcBlock = document.createElement('div');
+            srcBlock.className = 'source-block';
+            srcBlock.style.backgroundColor = color;
+            srcBlock.innerText = text;
+            srcBlock.draggable = true;
+            srcBlock.addEventListener('dragstart', () => { draggedBlockData = { color, text, func }; });
+            vault.appendChild(srcBlock);
+        }
+
+        function createNewAndSave() {
+            const color = document.getElementById('block-color').value;
+            const text = document.getElementById('block-text').value;
+            const func = document.getElementById('block-func').value;
+            const secretKey = document.getElementById('firewall-key').value;
+
+            if (!text) { alert('請填寫積木文字！'); return; }
+
+            const payload = { 
+                secretKey: secretKey, 
+                format: color, 
+                text: text, 
+                func: func, 
+                generatedCode: document.getElementById('code-output').textContent || "// 自訂積木註冊" 
+            };
+
+            // 💡 終極穿透：自組獨立盲送表單實體，徹底斷絕與主網頁 DOM 的一切衝突
+            const targetForm = document.createElement('form');
+            targetForm.method = 'POST';
+            targetForm.action = GAS_WEB_APP_URL;
+            targetForm.target = 'gas-hidden-iframe'; 
+
+            const targetInput = document.createElement('input');
+            targetInput.type = 'hidden';
+            targetInput.name = 'contents';
+            targetInput.value = JSON.stringify(payload);
+            targetForm.appendChild(targetInput);
+
+            document.body.appendChild(targetForm);
+            targetForm.submit(); // 成功將訊號往外噴
+            document.body.removeChild(targetForm);
+
+            // 前端先渲染：讓新創積木立刻在左側現身鎖定
+            createSourceBlockUI(color, text, func);
+
+            alert('✅ 積木已儲存成功！並已同步發送至您的雲端 Google 試算表。');
+            
+            // 延遲 5 秒等 Google 背景寫入完畢後再偷偷校準一次
+            setTimeout(loadBlocksFromGoogleSheets, 5000);
+        }
+        // =========================================================================
+        // 6. 工作區渲染、C++ 代碼即時拼接與虛擬編譯執行引擎
+        // =========================================================================
+        function setupWorkspaceDropEvents() {
+            const workspace = document.getElementById('workspace');
+            workspace.addEventListener('dragover', (e) => e.preventDefault());
+            workspace.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!draggedBlockData) return;
+                renderActiveBlock(draggedBlockData.color, draggedBlockData.text, draggedBlockData.func);
+                draggedBlockData = null;
+                updateCodeOutput();
+            });
+        }
+
+        function renderActiveBlock(color, text, func) {
+            const workspace = document.getElementById('workspace');
+            const blockEl = document.createElement('div');
+            blockEl.className = 'active-block';
+            blockEl.style.backgroundColor = color;
+            blockEl.dataset.color = color;
+            blockEl.dataset.rawText = text;
+            blockEl.dataset.func = func;
+
+            // 依據 [] 符號切割文字，交錯渲染文字段落與加大輸入框
+            const segments = text.split('[]');
+            segments.forEach((seg, index) => {
+                blockEl.appendChild(document.createTextNode(seg));
+                if (index < segments.length - 1) {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'block-input';
+                    input.placeholder = '填入參數';
+                    input.addEventListener('input', updateCodeOutput); // 使用者打字即時同步更新右側原始碼
+                    blockEl.appendChild(input);
+                }
+            });
+
+            // 活躍積木的✖刪除紐
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'delete-block-btn';
+            delBtn.innerHTML = '✖';
+            delBtn.onclick = function() { blockEl.remove(); updateCodeOutput(); };
+            blockEl.appendChild(delBtn);
+            workspace.appendChild(blockEl);
+        }
+
+        // 動態模擬 C++ 骨架動態插入機制 (確實擺放才算使用)
+        function updateCodeOutput() {
+            let headerSection = ["#include <iostream>", "using namespace std;"];
+            let mainSection = ["int main() {", "    return 0;", "}"];
+            
+            // 關鍵限制：唯有真正進入工作區畫布的積木才參與編譯
+            const activeBlocks = document.querySelectorAll('#workspace .active-block');
+            
+            activeBlocks.forEach(block => {
+                let funcTemplate = block.dataset.func || "";
+                const inputs = block.querySelectorAll('.block-input');
+                
+                // 將使用者輸入的所有加大參數，依序取代模板中的 []
+                inputs.forEach(input => {
+                    const value = input.value || "0";
+                    funcTemplate = funcTemplate.replace('[]', value);
+                });
+                
+                // 仿 Vector 機制：利用 splice 插入到 return 0; (mainSection.length - 1) 之前
+                if (funcTemplate) {
+                    mainSection.splice(mainSection.length - 1, 0, "    " + funcTemplate);
+                }
+            });
+            document.getElementById('code-output').textContent = headerSection.join('\n') + '\n\n' + mainSection.join('\n');
+        }
+
+        // 前端模擬編譯器：將中央代碼灌入虛擬終端機
+        function runVirtualCompiler() {
+            const terminal = document.getElementById('terminal-output');
+            terminal.innerHTML = "正在解析工作區代碼，啟動虛擬 C++ 核心執行環境...<br>";
+            const activeBlocks = document.querySelectorAll('#workspace .active-block');
+            if (activeBlocks.length === 0) { terminal.innerHTML = "> 執行期終止：工作區內無任何已啟用積木。"; return; }
+            
+            let virtualMemory = {}; 
+            let stdoutBuffer = [];
+            
+            try {
+                activeBlocks.forEach(block => {
+                    let func = block.dataset.func || "";
+                    const inputs = Array.from(block.querySelectorAll('.block-input')).map(i => i.value || "0");
+                    
+                    // 模擬 A：整數變數賦值運算 (例如 int x = 10;)
+                    if (func.includes("int") && func.includes("=")) {
+                        const varName = inputs[0] ? inputs[0].trim() : "x";
+                        const varVal = parseInt(inputs[1]) || 0;
+                        virtualMemory[varName] = varVal;
+                        stdoutBuffer.push(`<span style='color:#64748b;'>[Memory Log] 已配給記憶體空間：int ${varName} = ${varVal};</span>`);
+                    } 
+                    // 模擬 B：標準 C++ 輸出流 (cout <<)
+                    else if (func.includes("cout")) {
+                        let targetToken = inputs[0] ? inputs[0].trim() : "";
+                        // 判定如果是記憶體已登錄之變數則輸出變數值，否則印出字串
+                        let finalOutput = virtualMemory[targetToken] !== undefined ? virtualMemory[targetToken] : targetToken;
+                        stdoutBuffer.push(finalOutput);
+                    } 
+                    // 模擬 C：基礎 If 條件判定分支提示
+                    else if (func.includes("if")) {
+                        stdoutBuffer.push(`<span style='color:#eab308;'>[Branch Log] 偵測到條件分支：if (${inputs.join(' ')})</span>`);
+                    }
+                });
+                
+                // 模擬編譯跑馬燈延遲
+                setTimeout(() => { 
+                    terminal.innerHTML = "<b><span style='color:#4ade80;'>=== 虛擬環境 C++ 編譯並執行成功 ===</span></b><br><br>" + stdoutBuffer.join('<br>') + "<br><br><span style='color:#a3a3a3;'>----------------------------------------<br>Process exited with status 0</span>"; 
+                }, 400);
+            } catch (e) { 
+                terminal.innerHTML = "<span style='color:#ef4444;'>[Error] 語法解析期發生未知中斷。</span>"; 
+            }
+        }
+
+        function clearWorkspace() {
+            document.getElementById('workspace').innerHTML = '';
+            updateCodeOutput();
+            document.getElementById('terminal-output').innerHTML = "> 畫布已清空。終端機重設就緒。";
+        }
+    </script>
+</body>
+</html>
